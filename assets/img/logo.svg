@@ -1,0 +1,17 @@
+<svg width="200" height="200" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="degradeAzul" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#00c6ff" />
+            <stop offset="100%" stop-color="#0072ff" />
+        </linearGradient>
+    </defs>
+
+    <path d="M35 10H15C12.2386 10 10 12.2386 10 15V35" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M65 10H85C87.7614 10 90 12.2386 90 15V35" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M10 65V85C10 87.7614 12.2386 90 15 90H35" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M90 65V85C90 87.7614 87.7614 90 85 90H65" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round"/>
+
+    <path d="M30 45V35C30 32.2386 32.2386 30 35 30H65C67.7614 30 70 32.2386 70 35V45" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M20 55H80" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M30 65V70C30 72.7614 32.2386 75 35 75H65C67.7614 75 70 72.7614 70 70V65" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,71 @@
+/* ============================================================
+   ALLMARKET — Design Tokens / Variáveis Globais
+   ============================================================ */
+:root {
+  /* Cores */
+  --color-primary:       #2563eb;
+  --color-primary-dark:  #1d4ed8;
+  --color-primary-darker:#1e40af;
+  --color-primary-light: #3b82f6;
+  --color-primary-soft:  #60a5fa;
+  --color-primary-pale:  #93c5fd;
+  --color-primary-ghost: #dbeafe;
+
+  --color-success:       #22c55e;
+  --color-success-dark:  #166534;
+  --color-danger:        #ef4444;
+  --color-pink:          #db2777;
+  --color-scanner-from:  #00c6ff;
+  --color-scanner-to:    #0072ff;
+
+  --color-bg:            #f9fafb;
+  --color-surface:       #ffffff;
+
+  --color-text-main:     #111827;
+  --color-text-sub:      #6b7280;
+  --color-text-muted:    #9ca3af;
+  --color-text-accent:   #2563eb;
+
+  --color-border:        #e2e8f0;
+  --color-border-light:  #f1f5f9;
+
+  /* Tipografia */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-size-xs:   10px;
+  --font-size-sm:   12px;
+  --font-size-base: 14px;
+  --font-size-md:   16px;
+  --font-size-lg:   20px;
+  --font-size-xl:   24px;
+  --font-size-2xl:  32px;
+
+  /* Espaçamento */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Sombras */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-card-hover: 0 4px 24px rgba(37,99,235,0.12);
+  --shadow-nav: 0 2px 12px rgba(0,0,0,0.08);
+
+  /* Border Radius */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-pill: 50px;
+
+  /* Alturas das barras de navegação */
+  --nav-top-height:      80px;
+  --nav-bottom-height:   64px;
+  --processar-height:    72px;
+  --nav-top-height-mob:  64px;
+
+  /* Transições */
+  --transition: 0.2s ease;
+}

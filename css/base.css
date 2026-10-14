@@ -1,0 +1,134 @@
+/* ============================================================
+   ALLMARKET — Estilos Base / Reset
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+input, textarea {
+  font-family: inherit;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ============================================================
+   Utilitários
+   ============================================================ */
+.hidden {
+  display: none !important;
+}
+
+.text-blue {
+  color: var(--color-primary);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================
+   Container principal
+   ============================================================ */
+.app-container {
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.content-area {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px var(--space-4);
+  /* padding-top será sobrescrito por cada página conforme existência das navbars */
+}
+
+/* Quando o layout tem todas as barras (desktop) */
+.layout-with-nav .content-area {
+  padding-top: calc(var(--nav-top-height) + var(--nav-bottom-height) + 20px);
+}
+
+/* Quando só tem nav-top (home) */
+.layout-only-top .content-area {
+  padding-top: calc(var(--nav-top-height) + 20px);
+}
+
+@media (max-width: 1023px) {
+  .layout-with-nav .content-area {
+    padding-top: calc(var(--nav-top-height-mob) + 20px);
+    padding-bottom: calc(var(--nav-bottom-height) + 20px);
+  }
+  .layout-only-top .content-area {
+    padding-top: calc(var(--nav-top-height-mob) + 20px);
+  }
+}
+
+/* ============================================================
+   Overlay de Loading (Scanner)
+   ============================================================ */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(249, 250, 251, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+/* ============================================================
+   Animações globais
+   ============================================================ */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes welcomeFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-in {
+  animation: fadeSlideUp 0.35s ease both;
+}

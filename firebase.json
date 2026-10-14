@@ -1,0 +1,16 @@
+{
+  "hosting": {
+    "site": "allmarket-9151b",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

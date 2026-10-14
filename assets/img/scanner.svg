@@ -1,0 +1,35 @@
+<svg width="220" height="220" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
+  <defs>
+    <linearGradient id="degradeAzul" x1="0" y1="0" x2="100" y2="100">
+      <stop offset="0%" stop-color="#00c6ff"/>
+      <stop offset="100%" stop-color="#0072ff"/>
+    </linearGradient>
+    <linearGradient id="scanTrail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00c6ff" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#00c6ff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0072ff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M35 10H15C12 10 10 12 10 15V35" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M65 10H85C88 10 90 12 90 15V35" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M10 65V85C10 88 12 90 15 90H35" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M90 65V85C90 88 88 90 85 90H65" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <g opacity="0.85">
+    <path d="M30 45V35C30 32 32 30 35 30H65C68 30 70 32 70 35V45" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round" fill="none">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="1.5s" repeatCount="indefinite"/>
+    </path>
+    <line x1="20" y1="55" x2="80" y2="55" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round">
+      <animate attributeName="opacity" values="0.5;1;0.5" dur="1.3s" repeatCount="indefinite"/>
+    </line>
+    <path d="M30 65V70C30 73 32 75 35 75H65C68 75 70 73 70 70V65" stroke="url(#degradeAzul)" stroke-width="6" stroke-linecap="round" fill="none">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="1.7s" repeatCount="indefinite"/>
+    </path>
+  </g>
+  <rect x="18" y="30" width="64" height="12" fill="url(#scanTrail)" opacity="0.6">
+    <animate attributeName="y" values="20;65;20" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <line x1="20" x2="80" y1="30" y2="30" stroke="#00c6ff" stroke-width="3" stroke-linecap="round">
+    <animate attributeName="y1" values="30;70;30" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="y2" values="30;70;30" dur="2s" repeatCount="indefinite"/>
+  </line>
+</svg>

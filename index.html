@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AllM@rket — Escaneia . Examina . Economiza</title>
+  <meta name="description" content="Controle inteligente de compras e notas fiscais. Escaneia suas notas, examina seus gastos e economiza no supermercado.">
+  <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- Chart.js para a aba de Análise -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Firebase App & Firestore Web SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <!-- Google Sign-In SDK (GSI) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
+
+  <!-- Estilos da Aplicação -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/navbar.css">
+  <link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+
+  <!-- Overlay de Loading / Scanner -->
+  <div id="loading-overlay" class="loading-overlay hidden" role="status" aria-live="polite">
+    <div class="scanner-wrapper">
+      <img src="assets/img/scanner.svg" alt="Processando..." width="180" height="180">
+      <div class="scanner-label">Processando nota fiscal...</div>
+    </div>
+  </div>
+
+  <!-- Toast / Notificação -->
+  <div id="snackbar" role="alert"></div>
+
+  <!-- Top Navigation Bar -->
+  <header id="nav-top" class="hidden">
+    <div class="nav-top-inner">
+      <div class="brand-group">
+        <img src="assets/img/logo.svg" alt="AllMarket Logo" class="brand-logo">
+        <div class="brand-text">
+          <div class="brand-name">All<span class="text-blue">M&#64;rket</span></div>
+          <div class="brand-slogan">Escaneia . Examina . Economiza</div>
+        </div>
+      </div>
+      <div class="user-controls">
+        <span class="user-name" id="nav-user-name"></span>
+        <button id="btn-logout" class="btn-logout" title="Sair da conta" aria-label="Sair">
+          <span class="material-icons">logout</span>
+          <span>Sair</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Barra Fixa de Processamento de Nota (URL) — mantida oculta para compatibilidade com api.js -->
+  <div id="nav-processar" class="hidden" style="display:none!important" aria-hidden="true">
+    <div class="nav-processar-inner">
+      <form id="nav-processar-form-legacy" class="input-pill" autocomplete="off">
+        <input type="url" id="processar-url-legacy" placeholder="" aria-hidden="true">
+      </form>
+    </div>
+  </div>
+
+  <!-- Container Principal das Páginas (SPA) -->
+  <div id="app" class="app-container">
+    <main class="content-area">
+
+      <!-- ========================================================
+           PÁGINA: LOGIN
+           ======================================================== -->
+      <section id="page-login" class="hidden">
+        <div class="login-card">
+          <img src="assets/img/logo.svg" alt="AllMarket Logo" class="login-logo">
+          
+          <div class="login-brand">
+            All<span class="text-blue">M&#64;rket</span>
+          </div>
+
+          <h1 class="login-tagline">
+            ESCANEIA. EXAMINA.<br>
+            <span class="text-blue">ECONOMIZA.</span>
+          </h1>
+
+          <div id="login-form" style="width: 100%;">
+            <!-- Botão Google Sign-In Oficial -->
+            <div id="google-btn-container" style="display: flex; justify-content: center; min-height: 44px;"></div>
+          </div>
+
+          <!-- Estado de validação / carregamento pós-login -->
+          <div id="login-progress" class="login-progress hidden">
+            <p>Validando acesso...</p>
+            <div class="progress-bar">
+              <div class="progress-bar-inner"></div>
+            </div>
+          </div>
+
+          <p class="login-desc">
+            ✨ Conecte-se e deixe nossa inteligência trabalhar por você: 
+            transformando cada nota em <b class="text-blue">dados que protegem seu bolso</b>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           PÁGINA: HOME (Boas-vindas para novos usuários)
+           ======================================================== -->
+      <section id="page-home" class="hidden">
+        <h1 class="home-welcome">
+          Seu <span>AllM&#64;rket</span> está pronto
+        </h1>
+        <p class="home-subtitle">VALORIZAMOS CADA <b class="text-blue">CENTAVO SEU</b></p>
+
+        <div class="home-steps">
+          <div class="home-step">
+            <span class="step-number">01</span>
+            <div class="step-content">
+              <div class="step-title">Escaneia</div>
+              <p>Cole o <b>link da nota</b> no campo acima e deixe o processamento por nossa conta.</p>
+            </div>
+          </div>
+
+          <div class="home-step">
+            <span class="step-number">02</span>
+            <div class="step-content">
+              <div class="step-title">Examina</div>
+              <p>Sincronizamos itens, valores e datas de forma <b>automática</b> e precisa.</p>
+            </div>
+          </div>
+
+          <div class="home-step">
+            <span class="step-number">03</span>
+            <div class="step-content">
+              <div class="step-title" style="color: var(--color-pink);">Economiza</div>
+              <p>Transforme dados brutos em <b class="text-blue">economia real</b> para o seu dia a dia.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           PÁGINA: NOTAS (Histórico de Notas Fiscais)
+           ======================================================== -->
+      <section id="page-notas" class="hidden">
+        <div class="notas-header">
+          <h1 class="notas-title">Histórico de Compras</h1>
+          <div class="notas-filter">
+            <div class="input-pill">
+              <span class="material-icons" style="color: var(--color-text-muted); font-size: 20px;">search</span>
+              <input type="text" id="notas-search" placeholder="Buscar estabelecimento..." aria-label="Buscar estabelecimento">
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid de Cards de Notas -->
+        <div id="notas-grid" class="notas-grid"></div>
+
+        <!-- Botão Ver Mais -->
+        <div class="notas-load-more">
+          <button id="btn-mais-notas" class="btn btn-outline hidden">
+            VER MAIS NOTAS
+          </button>
+        </div>
+
+        <!-- Painel de Detalhes da Nota Selecionada -->
+        <div id="nota-detalhes" class="hidden" role="region" aria-label="Detalhes da nota fiscal"></div>
+      </section>
+
+      <!-- ========================================================
+           PÁGINA: ANÁLISE (Dashboard e Gráficos)
+           ======================================================== -->
+      <section id="page-analise" class="hidden">
+        <div class="analise-header">
+          <h1>Análise de Gastos</h1>
+          <p class="text-muted">Acompanhe a evolução do seu orçamento e histórico por estabelecimento.</p>
+        </div>
+
+        <div class="volume-box">
+          <div>
+            <div class="volume-label">Volume Total Acumulado</div>
+            <div class="volume-valor" id="analise-total">R$ 0,00</div>
+          </div>
+          <div class="volume-count badge badge-blue" id="analise-count">0 notas</div>
+        </div>
+
+        <div id="analise-charts" class="charts-grid">
+          <div class="chart-card">
+            <h3>Gastos por Mês</h3>
+            <canvas id="bar-chart" aria-label="Gráfico de barras de gastos mensais"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Top Estabelecimentos</h3>
+            <canvas id="pie-chart" aria-label="Gráfico de rosca dos principais estabelecimentos"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================
+           PÁGINA: COMPARADOR (Comparador de Preços)
+           ======================================================== -->
+      <section id="page-comparador" class="hidden">
+        <div class="comparador-header">
+          <h1>Comparador de Preços</h1>
+          <p class="text-muted" style="margin-bottom: var(--space-4);">Consulte os menores preços já registrados para os seus itens habituais.</p>
+          <div class="input-pill">
+            <span class="material-icons" style="color: var(--color-text-muted); font-size: 20px;">search</span>
+            <input type="text" id="comparador-search" placeholder="Buscar produto (ex: Leite, Arroz, Café...)" aria-label="Buscar produto">
+          </div>
+        </div>
+
+        <div id="comparador-grid" class="comparador-grid"></div>
+      </section>
+
+      <!-- ========================================================
+           PÁGINA: LISTAS (Lista de Compras Inteligente)
+           ======================================================== -->
+      <section id="page-listas" class="hidden">
+        <div class="listas-header">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:var(--space-2);">
+            <h1>Minha Lista</h1>
+            <span class="badge badge-blue" id="listas-header-count">0/0</span>
+          </div>
+          <p class="sub">Organize seus itens, aproveite sugestões de compras anteriores e compartilhe com quem divide as contas.</p>
+        </div>
+
+        <div id="listas-vinculados" class="listas-vinculados"></div>
+
+        <!-- ── Painel de ações: 3 abas com ícone ───────────────── -->
+        <div class="listas-tab-panel" id="listas-tab-panel">
+
+          <!-- Barra de abas -->
+          <div class="listas-tabs" role="tablist">
+            <button class="listas-tab" data-tab="sugestoes" role="tab" aria-controls="tab-body-sugestoes" aria-selected="false" title="Sugestões Rápidas">
+              <span class="material-icons">storefront</span>
+              <span class="listas-tab-label">Sugestões Rápidas</span>
+            </button>
+            <button class="listas-tab" data-tab="salvar" role="tab" aria-controls="tab-body-salvar" aria-selected="false" title="Salvar Lista Atual">
+              <span class="material-icons">save_alt</span>
+              <span class="listas-tab-label">Salvar Lista</span>
+            </button>
+            <button class="listas-tab" data-tab="vincular" role="tab" aria-controls="tab-body-vincular" aria-selected="false" title="Vincular Contas">
+              <span class="material-icons">group_add</span>
+              <span class="listas-tab-label">Vincular</span>
+            </button>
+          </div>
+
+          <!-- Painel único que expande abaixo das abas -->
+          <div class="listas-tab-body hidden" id="tab-body-sugestoes" role="tabpanel">
+            <div id="sugestoes-scroll" class="sugestoes-scroll"></div>
+            <div id="painel-selecao-acc"></div>
+          </div>
+
+          <div class="listas-tab-body hidden" id="tab-body-salvar" role="tabpanel">
+            <form id="lista-salvar-form" class="input-pill mb-3">
+              <input type="text" id="lista-salvar-nome" placeholder="Nome da lista (ex: Churrasco)..." aria-label="Nome da lista" required>
+              <button type="submit" class="btn btn-primary btn-sm" style="padding:6px 14px;">Salvar</button>
+            </form>
+            <div class="section-label">Listas Salvas</div>
+            <div id="listas-salvas-list"></div>
+          </div>
+
+          <div class="listas-tab-body hidden" id="tab-body-vincular" role="tabpanel">
+            <p style="font-size:13px;color:var(--color-text-sub);margin-bottom:var(--space-3);">
+              Compartilhe suas listas e histórico de notas automaticamente com familiares ou parceiros(as).
+            </p>
+            <form id="share-form" class="input-pill">
+              <input type="email" id="share-email-input" placeholder="email.parceiro@exemplo.com" aria-label="E-mail para vincular" required>
+              <button type="submit" class="btn btn-primary btn-sm" style="background:var(--color-pink);padding:6px 14px;">Vincular</button>
+            </form>
+          </div>
+
+        </div><!-- /listas-tab-panel -->
+
+        <div class="section-label">Itens da lista</div>
+        <div id="lista-itens-section" class="lista-itens-section"></div>
+
+      </section>
+
+
+
+    </main>
+  </div>
+
+  <!-- Bottom Navigation Bar -->
+  <nav id="nav-bottom" class="hidden" aria-label="Navegação principal">
+    <div class="nav-bottom-inner">
+      <button class="nav-tab active" data-route="notas">
+        <span class="material-icons">receipt</span>
+        <span>Notas</span>
+      </button>
+
+      <button class="nav-tab" data-route="analise">
+        <span class="material-icons">bar_chart</span>
+        <span>Análise</span>
+      </button>
+
+      <button id="nav-btn-processar" class="nav-tab-add hidden" title="Colar link da nota" aria-label="Processar nota fiscal">
+        <span class="material-icons">content_paste</span>
+      </button>
+
+      <button id="nav-btn-add-item" class="nav-tab-add hidden" title="Adicionar item" aria-label="Adicionar item à lista">
+        <span class="material-icons">add</span>
+      </button>
+
+      <button class="nav-tab" data-route="comparador">
+        <span class="material-icons">compare_arrows</span>
+        <span>Comparador</span>
+      </button>
+
+      <button class="nav-tab" data-route="listas">
+        <span class="material-icons">checklist</span>
+        <span>Listas</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Modal: Processar Nota Fiscal -->
+  <div id="modal-processar" class="modal-add-item hidden" role="dialog" aria-modal="true" aria-label="Processar nota fiscal">
+    <div class="modal-add-item-inner">
+      <form id="processar-form" class="input-pill" autocomplete="off">
+        <input
+          type="url"
+          id="processar-url"
+          placeholder="Cole o link da nota fiscal..."
+          aria-label="Link da nota fiscal"
+          required>
+        <button type="submit" class="btn-icon" title="Processar nota" aria-label="Enviar nota">
+          <span class="material-icons">content_paste</span>
+        </button>
+      </form>
+    </div>
+  </div>
+  <div id="modal-processar-backdrop" class="modal-add-item-backdrop hidden"></div>
+
+  <!-- Modal: Adicionar Item à Lista -->
+  <div id="modal-add-item" class="modal-add-item hidden" role="dialog" aria-modal="true" aria-label="Adicionar item">
+    <div class="modal-add-item-inner">
+      <form id="lista-add-form">
+        <div class="input-pill">
+          <input type="text" id="lista-add-input" placeholder="O que você precisa comprar?" aria-label="Item da lista" autocomplete="off" required>
+          <button type="submit" class="btn-icon" title="Adicionar item" aria-label="Adicionar">
+            <span class="material-icons">add</span>
+          </button>
+        </div>
+        <div class="modal-add-categoria" id="modal-categoria-grid" aria-label="Categoria do item" role="radiogroup"></div>
+      </form>
+    </div>
+  </div>
+  <div id="modal-add-item-backdrop" class="modal-add-item-backdrop hidden"></div>
+
+  <!-- Módulos JavaScript (Vanilla ES6, modular e manutenível) -->
+  <script src="js/config.js"></script>
+  <script src="js/backend/parser.js"></script>
+  <script src="js/backend/db.js"></script>
+  <script src="js/backend/usecase.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/pages/notas.js"></script>
+  <script src="js/pages/analise.js"></script>
+  <script src="js/pages/comparador.js"></script>
+  <script src="js/pages/listas.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
