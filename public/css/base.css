@@ -84,7 +84,8 @@ img {
 
 /* Quando o layout tem todas as barras (desktop) */
 .layout-with-nav .content-area {
-  padding-top: calc(var(--nav-top-height) + var(--nav-bottom-height) + 20px);
+  padding-top: calc(var(--nav-top-height) + 20px);
+  padding-bottom: calc(var(--nav-bottom-height) + 20px);
 }
 
 /* Quando só tem nav-top (home) */

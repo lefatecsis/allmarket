@@ -1,7 +1,7 @@
 {
   "hosting": {
-    "site": "allmarket-9151b",
-    "public": ".",
+    "target": "meu-site-secundario",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*"
