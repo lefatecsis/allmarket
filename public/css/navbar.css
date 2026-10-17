@@ -270,6 +270,182 @@
   }
 }
 
+/* ── Modal "Processar Nota Fiscal" ───────────────────────── */
+.modal-processar {
+  position: fixed;
+  bottom: calc(var(--nav-bottom-height) + var(--space-4));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1210;
+  width: min(520px, calc(100vw - var(--space-8)));
+  animation: slideUpFade 0.2s ease both;
+}
+
+.modal-processar-inner {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Cabeçalho do modal */
+.modal-processar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-processar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-base);
+  font-weight: 800;
+  color: var(--color-text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modal-processar-title .material-icons {
+  font-size: 20px;
+  color: var(--color-primary);
+}
+
+.modal-processar-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.modal-processar-close:hover {
+  background: #fef2f2;
+  color: var(--color-danger);
+}
+.modal-processar-close .material-icons { font-size: 18px; }
+
+/* Botões de ação rápida (Colar / Câmera) */
+.processar-quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.processar-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-sub);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.processar-action-btn .material-icons {
+  font-size: 26px;
+  color: var(--color-primary);
+  transition: color var(--transition);
+}
+
+/* Círculo branco com o logo AllMarket */
+.processar-action-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  flex-shrink: 0;
+}
+
+.processar-action-logo-svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.processar-action-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-ghost);
+}
+
+/* Corpo do formulário */
+.processar-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Área do scanner de câmera */
+.processar-scanner-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  padding-bottom: var(--space-3);
+}
+
+.processar-video {
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  display: block;
+}
+
+.processar-scanner-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.processar-scanner-frame {
+  width: 160px;
+  height: 160px;
+  border: 3px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 4000px rgba(0,0,0,0.45);
+  animation: scannerPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes scannerPulse {
+  0%, 100% { border-color: var(--color-primary); box-shadow: 0 0 0 4000px rgba(0,0,0,0.45), 0 0 0 0 rgba(37,99,235,0.4); }
+  50%       { border-color: var(--color-scanner-from); box-shadow: 0 0 0 4000px rgba(0,0,0,0.45), 0 0 8px 4px rgba(0,198,255,0.5); }
+}
+
+.processar-scanner-hint {
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  margin-top: var(--space-2);
+}
+
 /* ── Seletor de categoria dentro do modal ────────────────── */
 .modal-add-categoria {
   display: grid;

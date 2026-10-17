@@ -309,8 +309,16 @@
         <span>Análise</span>
       </button>
 
-      <button id="nav-btn-processar" class="nav-tab-add hidden" title="Colar link da nota" aria-label="Processar nota fiscal">
-        <span class="material-icons">content_paste</span>
+      <button id="nav-btn-processar" class="nav-tab-add hidden" title="Escanear nota" aria-label="Processar nota fiscal">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="26" height="26" aria-hidden="true">
+          <path d="M35 10H15C12.2386 10 10 12.2386 10 15V35" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M65 10H85C87.7614 10 90 12.2386 90 15V35" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M10 65V85C10 87.7614 12.2386 90 15 90H35" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M90 65V85C90 87.7614 87.7614 90 85 90H65" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M30 45V35C30 32.2386 32.2386 30 35 30H65C67.7614 30 70 32.2386 70 35V45" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M20 55H80" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M30 65V70C30 72.7614 32.2386 75 35 75H65C67.7614 75 70 72.7614 70 70V65" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+        </svg>
       </button>
 
       <button id="nav-btn-add-item" class="nav-tab-add hidden" title="Adicionar item" aria-label="Adicionar item à lista">
@@ -330,18 +338,77 @@
   </nav>
 
   <!-- Modal: Processar Nota Fiscal -->
-  <div id="modal-processar" class="modal-add-item hidden" role="dialog" aria-modal="true" aria-label="Processar nota fiscal">
-    <div class="modal-add-item-inner">
-      <form id="processar-form" class="input-pill" autocomplete="off">
-        <input
-          type="url"
-          id="processar-url"
-          placeholder="Cole o link da nota fiscal..."
-          aria-label="Link da nota fiscal"
-          required>
-        <button type="submit" class="btn-icon" title="Processar nota" aria-label="Enviar nota">
-          <span class="material-icons">content_paste</span>
+  <div id="modal-processar" class="modal-processar hidden" role="dialog" aria-modal="true" aria-label="Processar nota fiscal">
+    <div class="modal-processar-inner">
+
+      <!-- Título + fechar -->
+      <div class="modal-processar-header">
+        <span class="modal-processar-title">
+          <span class="material-icons">receipt_long</span>
+          Processar Nota Fiscal
+        </span>
+        <button type="button" id="modal-processar-close" class="modal-processar-close" aria-label="Fechar">
+          <span class="material-icons">close</span>
         </button>
+      </div>
+
+      <!-- Área do scanner de câmera (oculta por padrão) -->
+      <div id="processar-scanner-area" class="processar-scanner-area hidden">
+        <video id="processar-video" class="processar-video" playsinline autoplay muted aria-label="Câmera para leitura de QR code"></video>
+        <div class="processar-scanner-overlay">
+          <div class="processar-scanner-frame"></div>
+          <p class="processar-scanner-hint">Aponte para o QR Code da nota</p>
+        </div>
+        <button type="button" id="processar-cancelar-scan" class="btn btn-sm" style="margin-top:var(--space-3);">
+          <span class="material-icons" style="font-size:16px;">close</span> Cancelar
+        </button>
+      </div>
+
+      <!-- Formulário principal -->
+      <form id="processar-form" autocomplete="off" class="processar-form-body">
+
+        <!-- Botões de ação rápida -->
+        <div class="processar-quick-actions">
+          <button type="button" id="btn-colar-link" class="processar-action-btn">
+            <span class="processar-action-logo-wrap" aria-hidden="true">
+              <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="processar-action-logo-svg">
+                <defs>
+                  <linearGradient id="paLogo" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#00c6ff"/>
+                    <stop offset="100%" stop-color="#0072ff"/>
+                  </linearGradient>
+                </defs>
+                <path d="M35 10H15C12.2386 10 10 12.2386 10 15V35" stroke="url(#paLogo)" stroke-width="6" stroke-linecap="round"/>
+                <path d="M65 10H85C87.7614 10 90 12.2386 90 15V35" stroke="url(#paLogo)" stroke-width="6" stroke-linecap="round"/>
+                <path d="M10 65V85C10 87.7614 12.2386 90 15 90H35" stroke="url(#paLogo)" stroke-width="6" stroke-linecap="round"/>
+                <path d="M90 65V85C90 87.7614 87.7614 90 85 90H65" stroke="url(#paLogo)" stroke-width="6" stroke-linecap="round"/>
+                <path d="M30 45V35C30 32.2386 32.2386 30 35 30H65C67.7614 30 70 32.2386 70 35V45" stroke="url(#paLogo)" stroke-width="6" stroke-linecap="round"/>
+                <path d="M20 55H80" stroke="url(#paLogo)" stroke-width="6" stroke-linecap="round"/>
+                <path d="M30 65V70C30 72.7614 32.2386 75 35 75H65C67.7614 75 70 72.7614 70 70V65" stroke="url(#paLogo)" stroke-width="6" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span>Colar link</span>
+          </button>
+          <button type="button" id="btn-abrir-camera" class="processar-action-btn">
+            <span class="material-icons">qr_code_scanner</span>
+            <span>Ler QR Code</span>
+          </button>
+        </div>
+
+        <!-- Campo de URL + enviar -->
+        <div class="input-pill">
+          <input
+            type="url"
+            id="processar-url"
+            placeholder="Cole o link da nota fiscal..."
+            aria-label="Link da nota fiscal"
+            inputmode="url"
+            required>
+          <button type="submit" class="btn-icon" title="Processar nota" aria-label="Enviar nota">
+            <span class="material-icons">send</span>
+          </button>
+        </div>
+
       </form>
     </div>
   </div>

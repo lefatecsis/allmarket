@@ -154,11 +154,124 @@ const Router = (() => {
 
   // ── Modal "Processar Nota" ──────────────────────────────
 
+  let _scanStream = null; // MediaStream ativo do scanner
+
   function _closeProcessarModal() {
     const modal    = document.getElementById('modal-processar');
     const backdrop = document.getElementById('modal-processar-backdrop');
     if (modal)    modal.classList.add('hidden');
     if (backdrop) backdrop.classList.add('hidden');
+    _pararScanner();
+  }
+
+  function _abrirProcessarModal() {
+    const modal   = document.getElementById('modal-processar');
+    const backdrop = document.getElementById('modal-processar-backdrop');
+    const input   = document.getElementById('processar-url');
+    if (!modal || !backdrop) return;
+    modal.classList.remove('hidden');
+    backdrop.classList.remove('hidden');
+    _pararScanner(); // garante que o scanner esteja fechado ao abrir
+    if (input) { input.value = ''; setTimeout(() => input.focus(), 80); }
+  }
+
+  function _pararScanner() {
+    const scanArea = document.getElementById('processar-scanner-area');
+    const video    = document.getElementById('processar-video');
+    if (_scanStream) {
+      _scanStream.getTracks().forEach(t => t.stop());
+      _scanStream = null;
+    }
+    if (video) video.srcObject = null;
+    if (scanArea) scanArea.classList.add('hidden');
+  }
+
+  async function _iniciarScanner() {
+    const scanArea = document.getElementById('processar-scanner-area');
+    const video    = document.getElementById('processar-video');
+    const input    = document.getElementById('processar-url');
+    if (!scanArea || !video) return;
+
+    // Solicita permissão e abre câmera traseira preferencial
+    try {
+      _scanStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+    } catch (err) {
+      UI.showSnack('Sem acesso à câmera: ' + (err.message || err));
+      return;
+    }
+
+    video.srcObject = _scanStream;
+    scanArea.classList.remove('hidden');
+
+    // Tenta usar BarcodeDetector nativo (Chrome/Android moderno)
+    if ('BarcodeDetector' in window) {
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+      let ativo = true;
+
+      const scanFrame = async () => {
+        if (!ativo || !_scanStream) return;
+        try {
+          const codes = await detector.detect(video);
+          if (codes.length > 0) {
+            const valor = codes[0].rawValue;
+            ativo = false;
+            _pararScanner();
+            if (input) { input.value = valor; input.dispatchEvent(new Event('input')); }
+            UI.showSnack('QR Code lido com sucesso!');
+            return;
+          }
+        } catch (_) {}
+        requestAnimationFrame(scanFrame);
+      };
+      video.addEventListener('loadeddata', () => requestAnimationFrame(scanFrame), { once: true });
+
+    } else {
+      // Fallback: carrega jsQR dinamicamente
+      if (!window.jsQR) {
+        try {
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+          });
+        } catch (_) {
+          UI.showSnack('Não foi possível carregar o leitor de QR Code.');
+          _pararScanner();
+          return;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      const ctx    = canvas.getContext('2d');
+      let ativo    = true;
+
+      const scanFrame = () => {
+        if (!ativo || !_scanStream) return;
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width  = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert',
+          });
+          if (code) {
+            ativo = false;
+            _pararScanner();
+            if (input) { input.value = code.data; input.dispatchEvent(new Event('input')); }
+            UI.showSnack('QR Code lido com sucesso!');
+            return;
+          }
+        }
+        requestAnimationFrame(scanFrame);
+      };
+      requestAnimationFrame(scanFrame);
+    }
   }
 
   function _initProcessarModal() {
@@ -169,18 +282,49 @@ const Router = (() => {
 
     if (!btn || !modal || !backdrop) return;
 
+    // Abre/fecha ao clicar no botão da navbar
     btn.addEventListener('click', () => {
       const isOpen = !modal.classList.contains('hidden');
-      if (isOpen) {
-        _closeProcessarModal();
-      } else {
-        modal.classList.remove('hidden');
-        backdrop.classList.remove('hidden');
-        if (input) { input.value = ''; input.focus(); }
-      }
+      if (isOpen) { _closeProcessarModal(); } else { _abrirProcessarModal(); }
     });
 
+    // Botão X dentro do modal
+    const btnClose = document.getElementById('modal-processar-close');
+    if (btnClose) btnClose.addEventListener('click', _closeProcessarModal);
+
+    // Backdrop fecha o modal
     backdrop.addEventListener('click', _closeProcessarModal);
+
+    // Botão "Colar link" — lê o clipboard e preenche o input
+    const btnColar = document.getElementById('btn-colar-link');
+    if (btnColar) {
+      btnColar.addEventListener('click', async () => {
+        try {
+          const texto = await navigator.clipboard.readText();
+          if (texto && input) {
+            input.value = texto.trim();
+            input.dispatchEvent(new Event('input'));
+            UI.showSnack('Link colado!');
+          }
+        } catch (_) {
+          // Clipboard API bloqueada — foca o input para o usuário colar manualmente
+          if (input) { input.focus(); input.select(); }
+          UI.showSnack('Toque no campo e cole o link manualmente (Ctrl+V / colar).');
+        }
+      });
+    }
+
+    // Botão "Ler QR Code" — abre câmera
+    const btnCamera = document.getElementById('btn-abrir-camera');
+    if (btnCamera) {
+      btnCamera.addEventListener('click', () => _iniciarScanner());
+    }
+
+    // Botão "Cancelar" dentro do scanner
+    const btnCancelarScan = document.getElementById('processar-cancelar-scan');
+    if (btnCancelarScan) {
+      btnCancelarScan.addEventListener('click', _pararScanner);
+    }
 
     // Fecha ao submeter o form
     const form = document.getElementById('processar-form');
