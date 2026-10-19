@@ -191,6 +191,7 @@
 @media (min-width: 1200px) { .notas-grid { grid-template-columns: repeat(3, 1fr); } }
 
 .nota-card {
+  position: relative;
   background: var(--color-surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
@@ -200,6 +201,35 @@
 }
 .nota-card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
 .nota-card.active { box-shadow: 0 0 0 2px var(--color-primary), var(--shadow-card-hover); }
+
+.nota-card-delete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-text-muted);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), color var(--transition), opacity var(--transition);
+  opacity: 0.5;
+  z-index: 2;
+}
+.nota-card:hover .nota-card-delete {
+  opacity: 1;
+}
+.nota-card-delete:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+.nota-card-delete .material-icons {
+  font-size: 16px;
+}
 .nota-card-body { padding: var(--space-4); }
 .nota-loja { font-size: var(--font-size-md); font-weight: 900; text-transform: uppercase; color: var(--color-text-main); line-height: 1.2; margin-bottom: var(--space-1); }
 .nota-cnpj { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: var(--space-3); }

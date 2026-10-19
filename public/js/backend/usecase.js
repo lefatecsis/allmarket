@@ -10,22 +10,62 @@ const BackendUsecase = (() => {
   /**
    * Processa uma URL ou conteúdo de Nota Fiscal da SEFAZ
    */
+  // ── Normalização de URLs da SEFAZ (evita double-encoding de %7C nos proxies) ─
+  function _limparUrlSefaz(url) {
+    let u = String(url || '').trim();
+    // Decodifica %7C (pipe) caso a URL já venha parcialmente codificada
+    u = u.replace(/%7C/gi, '|');
+    return u;
+  }
+
   // ── Cadeia de proxies CORS (tentados em paralelo; primeiro HTML válido vence) ─
   const CORS_PROXIES = [
-    { name: 'allorigins-raw', build: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, json: false },
-    { name: 'allorigins-get', build: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,  json: true  },
-    { name: 'codetabs',       build: (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`, json: false },
-    { name: 'thingproxy',     build: (u) => `https://thingproxy.freeboard.io/fetch/${u}`, json: false },
+    {
+      name: 'jina-html',
+      build: (u) => `https://r.jina.ai/${u}`,
+      headers: { 'X-Return-Format': 'html' },
+      json: false,
+    },
+    {
+      name: 'jina-text',
+      build: (u) => `https://r.jina.ai/${u}`,
+      headers: {},
+      json: false,
+    },
+    {
+      name: 'corsproxy-org',
+      build: (u) => `https://corsproxy.org/?${encodeURIComponent(u)}`,
+      headers: {},
+      json: false,
+    },
+    {
+      name: 'allorigins-raw',
+      build: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      headers: {},
+      json: false,
+    },
+    {
+      name: 'allorigins-get',
+      build: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+      headers: {},
+      json: true,
+    },
+    {
+      name: 'codetabs',
+      build: (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+      headers: {},
+      json: false,
+    },
   ];
 
-  // Marcadores que indicam que o HTML é realmente uma página de NFC-e / XML de nota
-  const _NOTA_MARKERS = /tabResult|txtTit2|infNFe|<det|class="chave"|span class="chave"|NFCe/i;
+  // Marcadores que indicam que o HTML/texto é realmente uma página de NFC-e / XML de nota
+  const _NOTA_MARKERS = /tabResult|txtTit|infNFe|<det|class="chave"|span class="chave"|NFCe|Qtde\.:|Vl\.\s*Total/i;
 
-  function _fetchWithTimeout(url, ms) {
-    if (typeof AbortController === 'undefined') return fetch(url);
+  function _fetchWithTimeout(url, options = {}, ms = 7000) {
+    if (typeof AbortController === 'undefined') return fetch(url, options);
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), ms);
-    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(id));
+    return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(id));
   }
 
   /**
@@ -35,7 +75,7 @@ const BackendUsecase = (() => {
   async function _fetchHTMLViaProxies(targetUrl, perProxyMs = 7000) {
     const tentativas = CORS_PROXIES.map(async (p) => {
       const proxyUrl = p.build(targetUrl);
-      const res = await _fetchWithTimeout(proxyUrl, perProxyMs);
+      const res = await _fetchWithTimeout(proxyUrl, { headers: p.headers || {} }, perProxyMs);
       if (!res.ok) throw new Error(`${p.name} HTTP ${res.status}`);
       let body;
       if (p.json) {
@@ -70,19 +110,20 @@ const BackendUsecase = (() => {
 
     let nota = null;
     let fetchOk = false;
+    const urlLimpa = isUrl ? _limparUrlSefaz(inputLimpo) : '';
 
     if (isUrl) {
       // Busca o HTML da nota via proxies CORS (com fallback em paralelo)
-      const html = await _fetchHTMLViaProxies(inputLimpo);
+      const html = await _fetchHTMLViaProxies(urlLimpa);
       if (html) {
         fetchOk = true;
         try {
-          nota = BackendParser.parseHTMLSEFAZ(html, inputLimpo);
+          nota = BackendParser.parseHTMLSEFAZ(html, urlLimpa);
         } catch (err) {
           console.error('Erro ao fazer parse do HTML da nota:', err);
         }
       } else {
-        console.warn('[Nota] Todos os proxies CORS falharam para:', inputLimpo);
+        console.warn('[Nota] Todos os proxies CORS falharam para:', urlLimpa);
       }
     } else if (isHtml) {
       // Conteúdo HTML colado diretamente pelo usuário
@@ -92,24 +133,26 @@ const BackendUsecase = (() => {
 
     // Só salva se realmente extraiu itens da página (nada de dados fictícios)
     if (nota && nota.itens && nota.itens.length > 0) {
-      // Verifica duplicata (mesma chave já processada)
+      nota.usuario_email = email.toLowerCase().trim();
+
+      // Verifica se a nota já existia no histórico
       if (nota.chave) {
         const existente = await BackendDB.notaExiste(nota.chave);
         if (existente) {
-          const err = new Error('Esta nota já está no seu histórico.');
-          err.status = 409;
-          err.chave = nota.chave;
-          throw err;
+          // Atualiza no Firestore substituindo qualquer dado fake ou desatualizado anterior
+          await BackendDB.salvarNota(nota);
+          nota.foiAtualizada = true;
+          return nota;
         }
       }
-      nota.usuario_email = email.toLowerCase().trim();
+
       await BackendDB.salvarNota(nota);
       return nota;
     }
 
     // Não conseguiu ler os itens → erro honesto, em vez de inventar produtos
     if (!fetchOk) {
-      throw new Error('Não foi possível ler a página da nota agora. Verifique o link e tente novamente.');
+      throw new Error('Não foi possível ler a página da nota agora. Verifique a conexão e o link e tente novamente.');
     }
     throw new Error('Não foi possível extrair os itens da nota. O link é de uma NFC-e válida?');
   }

@@ -78,19 +78,17 @@ const PageNotas = (() => {
       try {
         const nota = await ApiService.processarNota(url, email);
         input.value = '';
-        UI.showSnack('Nota processada com sucesso!');
+        if (nota && nota.foiAtualizada) {
+          UI.showSnack('Nota atualizada com sucesso com os itens oficiais da SEFAZ!');
+        } else {
+          UI.showSnack('Nota processada com sucesso!');
+        }
         if (nota && nota.chave) {
           localStorage.setItem(Config.STORAGE.NOTA_FOCUS, nota.chave);
         }
         await _load();
       } catch (err) {
-        if (err.status === 409) {
-          UI.showSnack('Esta nota já está no seu histórico.');
-          const nota = _notas.find(n => n.chave === err.chave);
-          if (nota) _abrirDetalhes(nota);
-        } else {
-          UI.showSnack('Erro: ' + err.message);
-        }
+        UI.showSnack('Erro: ' + err.message);
       }
     });
   }
@@ -132,6 +130,16 @@ const PageNotas = (() => {
       });
     });
 
+    // Evento no botão de exclusão rápida do card
+    grid.querySelectorAll('.nota-card-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const chave = btn.dataset.chave;
+        const nota = _notas.find(n => n.chave === chave);
+        if (nota) _confirmarExclusao(nota);
+      });
+    });
+
     // Botão "VER MAIS"
     if (btnMais) {
       if (exibidas < total) {
@@ -154,6 +162,9 @@ const PageNotas = (() => {
     return `
       <div class="nota-card ${ativo} animate-in" data-chave="${UI.escHtml(nota.chave)}">
         <div class="card-header-accent"></div>
+        <button class="nota-card-delete" title="Excluir esta nota" aria-label="Excluir nota" data-chave="${UI.escHtml(nota.chave)}">
+          <span class="material-icons">delete_outline</span>
+        </button>
         <div class="nota-card-body">
           <div class="nota-loja">${UI.escHtml(loja)}</div>
           <div class="nota-cnpj">${UI.escHtml(cnpj)}</div>

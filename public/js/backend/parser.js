@@ -387,21 +387,47 @@ const BackendParser = (() => {
       cnpj = extrairCNPJ(elTexts[0].textContent);
       if (elTexts.length >= 2) endereco = elTexts[1].textContent.replace(/\s+/g, ' ').trim();
     }
+
+    // Fallback para texto estruturado (ex: proxy de leitura em Markdown/Texto)
+    if (!nome || !cnpj) {
+      const mLoja = texto.match(/(?:Markdown Content:\s*\n+)?([^\n\r]+?)\s*\n+\s*CNPJ\s*:\s*([\d\.\/\-]+)/i);
+      if (mLoja) {
+        if (!nome) {
+          nome = mLoja[1].replace(/Title:.*?$/im, '').replace(/URL Source:.*?$/im, '').replace(/Markdown Content:/i, '').replace(/\s+/g, ' ').trim();
+        }
+        if (!cnpj) {
+          cnpj = extrairCNPJ(mLoja[2]);
+        }
+      }
+    }
+    if (!cnpj) {
+      const mCnpj = texto.match(/CNPJ\s*:\s*([\d\.\/\-]+)/i);
+      if (mCnpj) cnpj = extrairCNPJ(mCnpj[1]);
+    }
     if (!cnpj) cnpj = extrairCNPJ(html);
 
+    if (!endereco) {
+      const mEnd = texto.match(/CNPJ\s*:\s*[\d\.\/\-]+\s*\n+\s*([^\n\r]+)/i);
+      if (mEnd) endereco = mEnd[1].replace(/\s+/g, ' ').trim();
+    }
+
     // ── Data de emissão ──────────────────────────────────────
-    // Padrão: "Emissão: 17/10/2026 14:46:56" ou só "DD/MM/YYYY HH:mm:ss"
+    // Padrão: "Emissão: 17/10/2026 14:46:56" ou "**Emissão:**17/10/2026"
     let dataEmissao = '';
-    const dataMatch = texto.match(/Emiss[aã]o\s*:?\s*(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}(?::\d{2})?)/i)
+    const dataMatch = texto.match(/(?:\*\*)?Emiss[aã]o\s*:(?:\*\*)?\s*(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}(?::\d{2})?)/i)
                    || texto.match(/(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}(?::\d{2})?)/);
     if (dataMatch) dataEmissao = dataMatch[1].trim();
     if (!dataEmissao) dataEmissao = normalizarData(null);
 
-    // ── Número da nota ───────────────────────────────────────
+    // ── Número da nota e série ──────────────────────────────
     let numero = '';
-    const numMatch = texto.match(/N[uú]mero\s*:\s*(\d+)/i) || texto.match(/nNF\s*[:=]?\s*(\d+)/i);
+    const numMatch = texto.match(/(?:\*\*)?N[uú]mero\s*:(?:\*\*)?\s*(\d+)/i) || texto.match(/nNF\s*[:=]?\s*(\d+)/i);
     if (numMatch) numero = numMatch[1];
     if (!numero) numero = String(Math.floor(Math.random() * 90000) + 10000);
+
+    let serie = '1';
+    const serieMatch = texto.match(/(?:\*\*)?S[eé]rie\s*:(?:\*\*)?\s*(\d+)/i);
+    if (serieMatch) serie = serieMatch[1];
 
     // ── Itens ────────────────────────────────────────────────
     // Estrutura real SP: cada <tr> tem span.txtTit (nome), span.Rqtd, span.RUN,
@@ -419,6 +445,9 @@ const BackendParser = (() => {
       if (!elNomeItem) return;
       const nomeBruto = elNomeItem.textContent.replace(/\s+/g, ' ').trim();
       if (!nomeBruto || /Vl\.?\s*Total/i.test(nomeBruto)) return;
+
+      const elCod = tdEsq.querySelector('span.RCod');
+      const codigo = elCod ? (elCod.textContent.replace(/\D/g, '') || String(itens.length + 1)) : String(itens.length + 1);
 
       const elQtd = tdEsq.querySelector('span.Rqtd');
       const quantidade = extrairNumero(elQtd ? elQtd.textContent : 1) || 1;
@@ -440,7 +469,7 @@ const BackendParser = (() => {
 
       itens.push({
         nome: nomeItem,
-        codigo: elQtd ? elQtd.textContent.replace(/\D/g, '') || String(itens.length + 1) : String(itens.length + 1),
+        codigo,
         quantidade,
         unidade,
         preco_unitario: precoUnit || (quantidade ? precoTotal / quantidade : 0),
@@ -449,6 +478,33 @@ const BackendParser = (() => {
         categoria: buscarCategoria(nomeItem),
       });
     });
+
+    // ── Fallback para Texto/Markdown estruturado (ex: proxy leitor) ──
+    if (itens.length === 0) {
+      const regexItemTexto = /([^\n\r]+?)(?:\s*\(C[óo]digo:\s*(\d+)\s*\))?\s*(?:\*\*)?Qtde\.:(?:\*\*)?\s*([\d\,\.]+)\s*(?:\*\*)?UN:(?:\*\*)?\s*([A-Za-z]+)\s*(?:\*\*)?Vl\.\s*Unit\.:(?:\*\*)?\s*([\d\,\.]+)\s*(?:Vl\.\s*Total)?\s*([\d\,\.]+)/gi;
+      let m;
+      while ((m = regexItemTexto.exec(texto)) !== null) {
+        const nomeBruto = m[1].replace(/\s+/g, ' ').trim();
+        if (!nomeBruto || /Vl\.?\s*Total/i.test(nomeBruto)) continue;
+        const codigo = m[2] || String(itens.length + 1);
+        const quantidade = extrairNumero(m[3]) || 1;
+        const unidade = m[4] ? m[4].toUpperCase() : 'UN';
+        const precoUnit = extrairNumero(m[5]) || 0;
+        const precoTotal = extrairNumero(m[6]) || (precoUnit * quantidade);
+        const nomeItem = expandirNome(nomeBruto);
+
+        itens.push({
+          nome: nomeItem,
+          codigo,
+          quantidade,
+          unidade,
+          preco_unitario: precoUnit || (quantidade ? precoTotal / quantidade : 0),
+          preco_total: precoTotal,
+          valor_total: precoTotal,
+          categoria: buscarCategoria(nomeItem),
+        });
+      }
+    }
 
     // ── Fallback para XMLs (det/xProd) ───────────────────────
     if (itens.length === 0) {
@@ -485,7 +541,7 @@ const BackendParser = (() => {
     return {
       chave,
       numero,
-      serie: '1',
+      serie: serie || '1',
       data_emissao: dataEmissao,
       estabelecimento: {
         nome: nome || 'Estabelecimento não identificado',
