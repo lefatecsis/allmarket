@@ -212,6 +212,23 @@ const BackendDB = (() => {
   }
 
   /**
+   * Verifica se uma nota com a chave informada já existe no Firestore.
+   * Retorna os dados da nota existente, ou null se não existir.
+   */
+  async function notaExiste(chave) {
+    if (!chave) return null;
+    const db = _getFirestore();
+    if (!db) return null;
+    try {
+      const col = Config.COLLECTIONS.NOTAS || 'tb_notas';
+      const snap = await db.collection(col).doc(chave).get();
+      return snap.exists ? { chave: snap.id, ...snap.data() } : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
    * Deleta uma nota fiscal pelo código de chave
    */
   async function deletarNotaPorChave(chave) {
@@ -309,6 +326,7 @@ const BackendDB = (() => {
     desvincular,
     listarNotasPorEmails,
     salvarNota,
+    notaExiste,
     deletarNotaPorChave,
     listarListasPorEmails,
     salvarLista,

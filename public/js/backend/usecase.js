@@ -10,87 +10,108 @@ const BackendUsecase = (() => {
   /**
    * Processa uma URL ou conteúdo de Nota Fiscal da SEFAZ
    */
+  // ── Cadeia de proxies CORS (tentados em paralelo; primeiro HTML válido vence) ─
+  const CORS_PROXIES = [
+    { name: 'allorigins-raw', build: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, json: false },
+    { name: 'allorigins-get', build: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,  json: true  },
+    { name: 'codetabs',       build: (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`, json: false },
+    { name: 'thingproxy',     build: (u) => `https://thingproxy.freeboard.io/fetch/${u}`, json: false },
+  ];
+
+  // Marcadores que indicam que o HTML é realmente uma página de NFC-e / XML de nota
+  const _NOTA_MARKERS = /tabResult|txtTit2|infNFe|<det|class="chave"|span class="chave"|NFCe/i;
+
+  function _fetchWithTimeout(url, ms) {
+    if (typeof AbortController === 'undefined') return fetch(url);
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(id));
+  }
+
+  /**
+   * Tenta obter o HTML da nota através de múltiplos proxies CORS.
+   * Retorna o primeiro HTML válido encontrado, ou null se todos falharem.
+   */
+  async function _fetchHTMLViaProxies(targetUrl, perProxyMs = 7000) {
+    const tentativas = CORS_PROXIES.map(async (p) => {
+      const proxyUrl = p.build(targetUrl);
+      const res = await _fetchWithTimeout(proxyUrl, perProxyMs);
+      if (!res.ok) throw new Error(`${p.name} HTTP ${res.status}`);
+      let body;
+      if (p.json) {
+        const json = await res.json();
+        body = (json && json.contents) ? json.contents : '';
+      } else {
+        body = await res.text();
+      }
+      if (!body || body.length < 200) throw new Error(`${p.name} resposta curta`);
+      if (!_NOTA_MARKERS.test(body)) throw new Error(`${p.name} sem marcadores de nota`);
+      console.info(`[Nota] Página obtida via proxy: ${p.name}`);
+      return body;
+    });
+
+    try {
+      // Promise.any = resolve com o primeiro sucesso; rejeita só se todos falharem
+      return await Promise.any(tentativas);
+    } catch (_) {
+      return null;
+    }
+  }
+
   async function processarNota(input, email) {
     if (!email) throw new Error('E-mail do usuário é obrigatório');
     const inputLimpo = String(input || '').trim();
 
-    if (!inputLimpo.startsWith('http') && !inputLimpo.includes('<') && inputLimpo.length < 44) {
+    const isUrl  = inputLimpo.startsWith('http');
+    const isHtml = inputLimpo.includes('<');
+    if (!isUrl && !isHtml && inputLimpo.length < 44) {
       throw new Error('Por favor, insira um link válido da nota fiscal (URL) ou o código da chave');
     }
 
     let nota = null;
+    let fetchOk = false;
 
-    // 1. Se for URL da SEFAZ, tenta obter HTML via proxy CORS rápido
-    if (inputLimpo.startsWith('http')) {
-      try {
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(inputLimpo)}`;
-        const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
-        if (res.ok) {
-          const html = await res.text();
-          if (html && html.length > 200) {
-            nota = BackendParser.parseHTMLSEFAZ(html, inputLimpo);
-          }
+    if (isUrl) {
+      // Busca o HTML da nota via proxies CORS (com fallback em paralelo)
+      const html = await _fetchHTMLViaProxies(inputLimpo);
+      if (html) {
+        fetchOk = true;
+        try {
+          nota = BackendParser.parseHTMLSEFAZ(html, inputLimpo);
+        } catch (err) {
+          console.error('Erro ao fazer parse do HTML da nota:', err);
         }
-      } catch (_) {
-        // Falha silenciosa de rede/CORS — prossegue com parser inteligente de URL
+      } else {
+        console.warn('[Nota] Todos os proxies CORS falharam para:', inputLimpo);
       }
-    } else if (inputLimpo.includes('<')) {
-      // Conteúdo HTML colado diretamente
+    } else if (isHtml) {
+      // Conteúdo HTML colado diretamente pelo usuário
+      fetchOk = true;
       nota = BackendParser.parseHTMLSEFAZ(inputLimpo, '');
     }
 
-    // 2. Se não conseguiu o HTML ou a SEFAZ bloqueou CORS, extrai chave da URL/texto
-    if (!nota || !nota.itens || nota.itens.length === 0) {
-      const chave = BackendParser.extrairChave(inputLimpo) || ('35' + Date.now() + '100000000000000000').slice(0, 44);
-      const cnpj = BackendParser.extrairCNPJ(inputLimpo) || '00.000.000/0001-91';
-
-      // Detecta estado da SEFAZ pela URL
-      let uf = 'SP';
-      if (inputLimpo.includes('.rs.')) uf = 'RS';
-      else if (inputLimpo.includes('.pr.')) uf = 'PR';
-      else if (inputLimpo.includes('.sc.')) uf = 'SC';
-      else if (inputLimpo.includes('.rj.')) uf = 'RJ';
-      else if (inputLimpo.includes('.mg.')) uf = 'MG';
-      else if (inputLimpo.includes('.pe.')) uf = 'PE';
-
-      const agora = new Date();
-      const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
-
-      // Gera nota válida com itens balanceados
-      const itensGerados = [
-        { nome: 'Arroz Branco Tipo 1 5kg', codigo: '78910010', quantidade: 1, unidade: 'UN', preco_unitario: 26.90, preco_total: 26.90, valor_total: 26.90, categoria: 'ALIMENTOS' },
-        { nome: 'Feijão Carioca 1kg', codigo: '78910020', quantidade: 2, unidade: 'UN', preco_unitario: 7.49, preco_total: 14.98, valor_total: 14.98, categoria: 'ALIMENTOS' },
-        { nome: 'Leite UHT Integral 1L', codigo: '78910030', quantidade: 6, unidade: 'UN', preco_unitario: 4.69, preco_total: 28.14, valor_total: 28.14, categoria: 'LATICÍNIOS' },
-        { nome: 'Pão Francês', codigo: '78910040', quantidade: 0.5, unidade: 'KG', preco_unitario: 18.00, preco_total: 9.00, valor_total: 9.00, categoria: 'PADARIA' },
-        { nome: 'Café Torrado Tradicional 500g', codigo: '78910050', quantidade: 1, unidade: 'UN', preco_unitario: 16.90, preco_total: 16.90, valor_total: 16.90, categoria: 'BEBIDAS' },
-        { nome: 'Detergente Líquido 500ml', codigo: '78910060', quantidade: 2, unidade: 'UN', preco_unitario: 2.75, preco_total: 5.50, valor_total: 5.50, categoria: 'LIMPEZA' },
-      ];
-
-      const totalCalculado = itensGerados.reduce((acc, i) => acc + i.preco_total, 0);
-
-      nota = {
-        chave,
-        numero: String(Math.floor(Math.random() * 80000) + 10000),
-        serie: '1',
-        data_emissao: dataFormatada,
-        estabelecimento: {
-          nome: `SUPERMERCADO SEFAZ ${uf}`,
-          nome_fantasia: `Supermercado Central - ${uf}`,
-          cnpj,
-          endereco: `Av. Brasil, 500 - Centro, ${uf}`,
-        },
-        valor_total: totalCalculado,
-        itens: itensGerados,
-      };
+    // Só salva se realmente extraiu itens da página (nada de dados fictícios)
+    if (nota && nota.itens && nota.itens.length > 0) {
+      // Verifica duplicata (mesma chave já processada)
+      if (nota.chave) {
+        const existente = await BackendDB.notaExiste(nota.chave);
+        if (existente) {
+          const err = new Error('Esta nota já está no seu histórico.');
+          err.status = 409;
+          err.chave = nota.chave;
+          throw err;
+        }
+      }
+      nota.usuario_email = email.toLowerCase().trim();
+      await BackendDB.salvarNota(nota);
+      return nota;
     }
 
-    // Vincula ao e-mail do usuário
-    nota.usuario_email = email.toLowerCase().trim();
-
-    // Salva no Firestore
-    await BackendDB.salvarNota(nota);
-
-    return nota;
+    // Não conseguiu ler os itens → erro honesto, em vez de inventar produtos
+    if (!fetchOk) {
+      throw new Error('Não foi possível ler a página da nota agora. Verifique o link e tente novamente.');
+    }
+    throw new Error('Não foi possível extrair os itens da nota. O link é de uma NFC-e válida?');
   }
 
   /**

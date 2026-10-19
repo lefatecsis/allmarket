@@ -342,72 +342,145 @@ const BackendParser = (() => {
   }
 
   /**
-   * Faz parse de HTML retornado pela SEFAZ ou colado pelo usuário
+   * Faz parse de HTML retornado pela SEFAZ ou colado pelo usuário.
+   *
+   * Estrutura real confirmada via HTML da NFC-e SP (ConsultaQRCode.aspx):
+   *   - div.txtTopo          → nome do estabelecimento
+   *   - div.text (1º)        → CNPJ
+   *   - div.text (2º)        → endereço
+   *   - #tabResult tr        → uma linha por produto
+   *     - span.txtTit        → nome do produto (NÃO .txtTit2)
+   *     - span.Rqtd          → "Qtde.:1" ou "Qtde.:0,276"
+   *     - span.RUN            → "UN: UN" ou "UN: KG"
+   *     - span.RvlUnit        → "Vl. Unit.: 10,99"
+   *     - span.valor          → "10,99"  (na <td> direita)
+   *   - span.chave           → "3526 1001 4442..." (44 dígitos com espaços)
+   *   - span.totalNumb.txtMax → valor total "154,17"
+   *   - texto "Emissão: DD/MM/YYYY HH:mm:ss"
    */
   function parseHTMLSEFAZ(html, url = '') {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
-    const texto = doc.body ? doc.body.textContent : html;
+    const texto = doc.body ? (doc.body.textContent || '') : (html || '');
 
-    const chave = extrairChave(url) || extrairChave(html) || ('35' + Date.now() + '100000000000000000').slice(0, 44);
+    // ── Chave de 44 dígitos ──────────────────────────────────
+    // A chave na página vem com espaços: "3526 1001 4442 1000..."
+    let chave = '';
+    const elChave = doc.querySelector('span.chave, .chave');
+    if (elChave) chave = (elChave.textContent || '').replace(/\D/g, '');
+    // Se não achou no elemento, tenta extrair da URL (?p=44dígitos|...)
+    if (!chave || chave.length !== 44) chave = extrairChave(url);
+    // Último recurso: 44 dígitos seguidos no texto bruto
+    if (!chave || chave.length !== 44) chave = extrairChave(html);
+    if (chave && chave.length !== 44) chave = '';
 
-    // Estabelecimento
+    // ── Estabelecimento ──────────────────────────────────────
     let nome = '';
-    const elNome = doc.querySelector('emit xNome, .txtTopo, #u20, .txtTit, h2, h3');
-    if (elNome) nome = elNome.textContent.trim();
-    if (!nome) nome = 'Supermercado AllMarket';
+    const elNome = doc.querySelector('div.txtTopo, #u20.txtTopo, .txtTopo');
+    if (elNome) nome = elNome.textContent.replace(/\s+/g, ' ').trim();
 
-    const cnpj = extrairCNPJ(html) || '12345678000199';
-
+    // CNPJ e Endereço — SP: div.text, 1º = CNPJ, 2º = endereço
+    let cnpj = '';
     let endereco = '';
-    const elEnd = doc.querySelector('.text, .txtEndereco, enderEmit');
-    if (elEnd) endereco = elEnd.textContent.trim();
+    const elTexts = doc.querySelectorAll('div.text');
+    if (elTexts.length >= 1) {
+      cnpj = extrairCNPJ(elTexts[0].textContent);
+      if (elTexts.length >= 2) endereco = elTexts[1].textContent.replace(/\s+/g, ' ').trim();
+    }
+    if (!cnpj) cnpj = extrairCNPJ(html);
 
-    // Data e número
-    const numMatch = texto.match(/Número:\s*(\d+)/i) || texto.match(/nNF>(\d+)/i);
-    const numero = numMatch ? numMatch[1] : String(Math.floor(Math.random() * 90000) + 10000);
+    // ── Data de emissão ──────────────────────────────────────
+    // Padrão: "Emissão: 17/10/2026 14:46:56" ou só "DD/MM/YYYY HH:mm:ss"
+    let dataEmissao = '';
+    const dataMatch = texto.match(/Emiss[aã]o\s*:?\s*(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}(?::\d{2})?)/i)
+                   || texto.match(/(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}(?::\d{2})?)/);
+    if (dataMatch) dataEmissao = dataMatch[1].trim();
+    if (!dataEmissao) dataEmissao = normalizarData(null);
 
-    const dataMatch = texto.match(/Emissão:\s*(\d{2}\/\d{2}\/\d{4}\s*\d{2}:\d{2}:\d{2})/i);
-    const dataEmissao = normalizarData(dataMatch ? dataMatch[1] : null);
+    // ── Número da nota ───────────────────────────────────────
+    let numero = '';
+    const numMatch = texto.match(/N[uú]mero\s*:\s*(\d+)/i) || texto.match(/nNF\s*[:=]?\s*(\d+)/i);
+    if (numMatch) numero = numMatch[1];
+    if (!numero) numero = String(Math.floor(Math.random() * 90000) + 10000);
 
-    // Itens
+    // ── Itens ────────────────────────────────────────────────
+    // Estrutura real SP: cada <tr> tem span.txtTit (nome), span.Rqtd, span.RUN,
+    // span.RvlUnit (na 1ª <td>) e span.valor (na 2ª <td> .txtTit.noWrap).
+    // As linhas com "Vl. Total" como texto do span.txtTit são cabeçalhos — ignorar.
     const itens = [];
-    const linhas = doc.querySelectorAll('#tabResult tr, .table tr, det');
 
-    if (linhas.length > 0) {
-      linhas.forEach(linha => {
-        const elNomeItem = linha.querySelector('.txtTit, xProd');
+    const linhas = doc.querySelectorAll('#tabResult tr, table#tabResult tr');
+    linhas.forEach(tr => {
+      // Nome: span.txtTit na primeira célula (ignora o span.txtTit.noWrap que é "Vl. Total")
+      const tdEsq = tr.querySelector('td:first-child');
+      if (!tdEsq) return;
+
+      const elNomeItem = tdEsq.querySelector('span.txtTit');
+      if (!elNomeItem) return;
+      const nomeBruto = elNomeItem.textContent.replace(/\s+/g, ' ').trim();
+      if (!nomeBruto || /Vl\.?\s*Total/i.test(nomeBruto)) return;
+
+      const elQtd = tdEsq.querySelector('span.Rqtd');
+      const quantidade = extrairNumero(elQtd ? elQtd.textContent : 1) || 1;
+
+      const elUn = tdEsq.querySelector('span.RUN');
+      const unidade = elUn
+        ? elUn.textContent.replace(/UN\s*:\s*/i, '').replace(/\s+/g, '').toUpperCase() || 'UN'
+        : 'UN';
+
+      const elPu = tdEsq.querySelector('span.RvlUnit');
+      const precoUnit = extrairNumero(elPu ? elPu.textContent : 0);
+
+      // Valor total do item: span.valor na 2ª coluna
+      const tdDir = tr.querySelector('td:last-child, td.txtTit');
+      const elPt = tdDir ? tdDir.querySelector('span.valor') : null;
+      const precoTotal = extrairNumero(elPt ? elPt.textContent : precoUnit * quantidade);
+
+      const nomeItem = expandirNome(nomeBruto);
+
+      itens.push({
+        nome: nomeItem,
+        codigo: elQtd ? elQtd.textContent.replace(/\D/g, '') || String(itens.length + 1) : String(itens.length + 1),
+        quantidade,
+        unidade,
+        preco_unitario: precoUnit || (quantidade ? precoTotal / quantidade : 0),
+        preco_total: precoTotal,
+        valor_total: precoTotal,
+        categoria: buscarCategoria(nomeItem),
+      });
+    });
+
+    // ── Fallback para XMLs (det/xProd) ───────────────────────
+    if (itens.length === 0) {
+      const dets = doc.querySelectorAll('det, item');
+      dets.forEach((det, i) => {
+        const elNomeItem = det.querySelector('xProd, prod xProd');
         if (!elNomeItem) return;
-        const nomeBruto = elNomeItem.textContent.trim();
-        if (!nomeBruto || nomeBruto.includes('Vl. Total')) return;
-
+        const nomeBruto = elNomeItem.textContent.replace(/\s+/g, ' ').trim();
+        if (!nomeBruto) return;
         const nomeItem = expandirNome(nomeBruto);
-        const elQtd = linha.querySelector('.Rqtd, .txtQtde, qCom');
+        const elQtd = det.querySelector('qCom');
         const quantidade = extrairNumero(elQtd ? elQtd.textContent : 1) || 1;
-
-        const elUn = linha.querySelector('.RUN, .txtUnidade, uCom');
-        const unidade = elUn ? elUn.textContent.replace(/UN:/i, '').trim() : 'UN';
-
-        const elPrecoUnit = linha.querySelector('.RvlUnit, .txtValor, vUnCom');
-        const precoUnitario = extrairNumero(elPrecoUnit ? elPrecoUnit.textContent : 0);
-
-        const elPrecoTotal = linha.querySelector('.valor, .txtValorTotal, vProd');
-        const precoTotal = extrairNumero(elPrecoTotal ? elPrecoTotal.textContent : precoUnitario * quantidade);
-
+        const elUn = det.querySelector('uCom');
+        const unidade = elUn ? elUn.textContent.trim().toUpperCase() : 'UN';
+        const elPu = det.querySelector('vUnCom');
+        const precoUnit = extrairNumero(elPu ? elPu.textContent : 0);
+        const elPt = det.querySelector('vProd');
+        const precoTotal = extrairNumero(elPt ? elPt.textContent : precoUnit * quantidade);
         itens.push({
-          nome: nomeItem,
-          codigo: String(itens.length + 1),
-          quantidade,
-          unidade: unidade || 'UN',
-          preco_unitario: precoUnitario || (precoTotal / quantidade),
-          preco_total: precoTotal,
-          valor_total: precoTotal,
+          nome: nomeItem, codigo: String(i + 1), quantidade, unidade,
+          preco_unitario: precoUnit || (quantidade ? precoTotal / quantidade : 0),
+          preco_total: precoTotal, valor_total: precoTotal,
           categoria: buscarCategoria(nomeItem),
         });
       });
     }
 
-    const valorTotal = itens.reduce((acc, i) => acc + (i.preco_total || 0), 0);
+    // ── Valor total da nota ──────────────────────────────────
+    let valorTotal = 0;
+    const elTotal = doc.querySelector('span.totalNumb.txtMax, .totalNumb.txtMax');
+    if (elTotal) valorTotal = extrairNumero(elTotal.textContent);
+    if (!valorTotal) valorTotal = itens.reduce((acc, i) => acc + (i.preco_total || 0), 0);
 
     return {
       chave,
@@ -415,10 +488,10 @@ const BackendParser = (() => {
       serie: '1',
       data_emissao: dataEmissao,
       estabelecimento: {
-        nome,
-        nome_fantasia: nome,
-        cnpj,
-        endereco: endereco || 'Av. Principal, 1000 - Centro',
+        nome: nome || 'Estabelecimento não identificado',
+        nome_fantasia: nome || '',
+        cnpj: cnpj || '',
+        endereco: endereco || '',
       },
       itens,
       valor_total: valorTotal,
