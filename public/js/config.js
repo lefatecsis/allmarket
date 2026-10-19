@@ -29,6 +29,8 @@ const Config = Object.freeze({
     EMAIL:       'allmarket_user_email',
     NOTA_FOCUS:  'allmarket_nota_chave_focus',
     LISTA_LOCAL: 'allmarket_lista_local',
+    // Cache de nomes por e-mail (login por e-mail) — persiste entre logouts
+    EMAIL_NAMES: 'allmarket_email_names',
   },
 
   /** Categorias de itens e seus ícones Material */

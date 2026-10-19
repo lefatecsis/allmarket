@@ -26,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // Callback global exigido pelo SDK do Google
       window.handleGoogleCredential = AuthService.handleGoogleCredential;
     }
+    // Inicializa fluxo de login por e-mail (segunda opção)
+    AuthService.initEmailLogin();
   });
 
   Router.onEnter('notas',      () => PageNotas.init());

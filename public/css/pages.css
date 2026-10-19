@@ -52,6 +52,77 @@
 
 #google-btn-container { margin-top: var(--space-2); }
 
+/* ── Separador + login por e-mail ───────────────────────── */
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: var(--space-4) 0;
+  width: 100%;
+}
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border-light);
+}
+
+#email-login-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.email-input-pill {
+  width: 100%;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
+}
+
+.email-login-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: var(--space-1) 0 0;
+}
+
+.email-confirm-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  width: 100%;
+  animation: fadeSlideUp 0.25s ease both;
+}
+.email-confirm-label {
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+.email-confirm-addr {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-primary);
+  word-break: break-all;
+  margin-bottom: var(--space-3);
+}
+.email-confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+  margin-top: var(--space-2);
+}
+.email-confirm-actions .btn { flex: 1; }
+
 .login-progress { width: 100%; text-align: center; }
 .login-progress p { color: var(--color-text-sub); margin-bottom: var(--space-3); }
 .progress-bar {

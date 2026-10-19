@@ -101,6 +101,68 @@
           <div id="login-form" style="width: 100%;">
             <!-- Botão Google Sign-In Oficial -->
             <div id="google-btn-container" style="display: flex; justify-content: center; min-height: 44px;"></div>
+
+            <!-- Separador -->
+            <div class="login-divider">
+              <span>ou</span>
+            </div>
+
+            <!-- Login / Cadastro por e-mail -->
+            <div id="email-login-section">
+              <!-- Passo 1: digitar e-mail -->
+              <div id="email-step-1">
+                <form id="email-step1-form" autocomplete="off" novalidate>
+                  <div class="input-pill email-input-pill">
+                    <span class="material-icons" style="color: var(--color-text-muted); font-size: 20px;">mail</span>
+                    <input
+                      type="email"
+                      id="email-input"
+                      placeholder="Digite seu e-mail..."
+                      aria-label="E-mail"
+                      inputmode="email"
+                      autocomplete="email"
+                      required>
+                    <button type="submit" class="btn-icon" title="Continuar" aria-label="Continuar">
+                      <span class="material-icons">arrow_forward</span>
+                    </button>
+                  </div>
+                </form>
+                <p class="email-login-hint">Entre ou cadastre-se usando somente seu e-mail.</p>
+              </div>
+
+              <!-- Passo 2: confirmar / cadastrar -->
+              <div id="email-step-2" class="hidden">
+                <div class="email-confirm-card">
+                  <p class="email-confirm-label">Entrar como</p>
+                  <p class="email-confirm-addr" id="email-confirm-addr"></p>
+
+                  <!-- Novo usuário: pedir nome -->
+                  <div id="email-new-user-fields" class="hidden">
+                    <div class="input-pill email-input-pill" style="margin-bottom: 10px;">
+                      <span class="material-icons" style="color: var(--color-text-muted); font-size: 20px;">person</span>
+                      <input
+                        type="text"
+                        id="email-name-input"
+                        placeholder="Seu nome..."
+                        aria-label="Nome"
+                        autocomplete="given-name"
+                        required>
+                    </div>
+                  </div>
+
+                  <div class="email-confirm-actions">
+                    <button id="btn-email-back" type="button" class="btn btn-outline btn-sm">
+                      <span class="material-icons" style="font-size:16px;">arrow_back</span>
+                      Trocar
+                    </button>
+                    <button id="btn-email-confirm" type="button" class="btn btn-primary btn-sm">
+                      <span class="material-icons" style="font-size:16px;">login</span>
+                      Entrar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Estado de validação / carregamento pós-login -->
